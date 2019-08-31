@@ -12543,6 +12543,15 @@ static bool qdf_is_macaddr_Fw_Default(struct qdf_mac_addr *mac_addr)
 }
 #endif /* OPLUS_BUG_STABILITY */
 
+static void reverse_byte_array(uint8_t *arr, int len) {
+	int i;
+	for (i = 0; i < len / 2; i++) {
+		char temp = arr[i];
+		arr[i] = arr[len - i - 1];
+		arr[len - i - 1] = temp;
+	}
+}
+
 /**
  * hdd_initialize_mac_address() - API to get wlan mac addresses
  * @hdd_ctx: HDD Context
@@ -12577,19 +12586,8 @@ static int hdd_initialize_mac_address(struct hdd_context *hdd_ctx)
 	hdd_info("using default MAC address");
 
 	/* Use fw provided MAC */
-	#ifndef OPLUS_BUG_STABILITY
 	if (!qdf_is_macaddr_zero(&hdd_ctx->hw_macaddr)) {
-	#else
-	if ((!qdf_is_macaddr_zero(&hdd_ctx->hw_macaddr)) && (!qdf_is_macaddr_Fw_Default(&hdd_ctx->hw_macaddr))) {
-		if (hdd_ctx->hw_macaddr.bytes[0] & 0x01) {
-			uint8_t opbytes[QDF_MAC_ADDR_SIZE];
-			int8_t ii;
-			for (ii = 0; ii < QDF_MAC_ADDR_SIZE; ++ii) {
-				opbytes[ii] = hdd_ctx->hw_macaddr.bytes[QDF_MAC_ADDR_SIZE - 1 - ii];
-			}
-			qdf_mem_copy(hdd_ctx->hw_macaddr.bytes, opbytes, QDF_MAC_ADDR_SIZE);
-		}
-	#endif /* OPLUS_BUG_STABILITY */
+		reverse_byte_array(&hdd_ctx->hw_macaddr.bytes[0], 6);
 		hdd_update_macaddr(hdd_ctx, hdd_ctx->hw_macaddr, false);
 		update_mac_addr_to_fw = false;
 		return 0;
