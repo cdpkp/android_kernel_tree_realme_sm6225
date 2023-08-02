@@ -422,7 +422,7 @@ void Charger_Detect_Release(void);
 static int oplus_bq25890h_get_vbus(void);
 void oplus_bq25890h_dump_registers(void);
 static int oplus_register_extcon(struct sy697x *chip);
-static bool is_usb_rdy() {return true;}
+static bool is_usb_rdy(void) {return true;}
 #endif
 
 extern void cpuboost_charge_event(int flag);

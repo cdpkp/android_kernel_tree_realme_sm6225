@@ -63,7 +63,7 @@ char *pcb_versions[] = {
 	"MP"
 };
 extern unsigned int get_PCB_Version(void);
-int hw_version_set()
+int hw_version_set(void)
 {
 	unsigned int pcb = get_PCB_Version();
 	unsigned int id = pcb / 8;

@@ -46,7 +46,7 @@ struct wakeup_source *usbtemp_wakelock;
 #define HIGH_TEMP_SHORT_CHECK_TIMEOUT 1000 /*ms*/
 #define TYPEC_WAKEUP_DELAY	150 /* ms */
 
-int __attribute__((weak)) qpnp_get_prop_charger_voltage_now() {return 0;}
+int __attribute__((weak)) qpnp_get_prop_charger_voltage_now(void) {return 0;}
 
 static int usbtemp_recover_interval = USBTEMP_RECOVER_INTERVAL;
 module_param(usbtemp_recover_interval, int, 0644);

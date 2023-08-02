@@ -3844,7 +3844,7 @@ static u64 calc_freq_ux_load(struct task_struct *p, u64 wallclock)
  * We call it with interrupts disabled.
  */
 extern int sysctl_input_boost_enabled;
-void adjust_sched_assist_input_ctrl() {
+void adjust_sched_assist_input_ctrl(void) {
 	if (!sysctl_input_boost_enabled)
 		return;
 	if(sysctl_slide_boost_enabled) {

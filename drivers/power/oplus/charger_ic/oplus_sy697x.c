@@ -438,7 +438,7 @@ void Charger_Detect_Release(void);
 static int oplus_sy697x_get_vbus(void);
 void oplus_sy697x_dump_registers(void);
 static int oplus_register_extcon(struct sy697x *chip);
-bool is_usb_rdy() {return true;}
+bool is_usb_rdy(void) {return true;}
 struct oplus_chg_chip *g_oplus_chip;
 #endif
 extern void cpuboost_charge_event(int flag);
