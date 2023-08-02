@@ -397,7 +397,7 @@ static bool is_bq25890h(struct sy697x *sy);
 static int oplus_sy6974b_get_vbus(void);
 static void oplus_sy6974b_dump_registers(void);
 static int oplus_register_extcon(struct sy697x *chip);
-static inline bool is_usb_rdy() { return true; }
+static inline bool is_usb_rdy(void) { return true; }
 extern struct oplus_chg_chip *g_oplus_chip;
 
 extern void cpuboost_charge_event(int flag);
