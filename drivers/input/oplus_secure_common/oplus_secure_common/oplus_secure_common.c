@@ -1,5 +1,5 @@
 /************************************************************************************
- ** File: - source\android\kernel\msm-5.4\drivers\input\oplus_secure_drivers\oplus_secure_common\oplus_secure_common.c
+ ** File: - source\android\kernel\msm-5.4\drivers\input\oplus_secure_common\oplus_secure_common\oplus_secure_common.c
  ** OPLUS_FEATURE_SECURITY_COMMON
  ** Copyright (C), 2020-2025, OPLUS Mobile Comm Corp., Ltd
  **
