@@ -18,7 +18,7 @@
 #include <linux/mm.h>
 #include <linux/of.h>
 #include <linux/uaccess.h>
-#include "../../../../../vendor/oplus/secure/common/bsp/drivers/include/oplus_secure_common.h"
+#include "../../input/oplus_secure_drivers/include/oplus_secure_common.h"
 
 #define RPM_MASTERS_BUF_LEN 400
 
