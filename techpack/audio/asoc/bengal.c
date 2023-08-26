@@ -43,21 +43,17 @@
 #include "dailink_extends.h"
 #endif /* OPLUS_FEATURE_AUDIO_FTM */
 
-#ifndef OPLUS_ARCH_EXTENDS
-#define OPLUS_ARCH_EXTENDS
-#endif
-
-#ifdef OPLUS_ARCH_EXTENDS
+#ifdef CONFIG_SND_SOC_SIA81XX
 #include "codecs/sia81xx/sia81xx_aux_dev_if.h"
-#endif /* OPLUS_ARCH_EXTENDS */
+#endif /* CONFIG_SND_SOC_SIA81XX */
 
 #ifdef CONFIG_SND_SOC_OPLUS_PA_MANAGER
 #include "codecs/common/oplus_speaker_manager.h"
 #endif
 
-#ifdef CONFIG_SND_SOC_AW882XX //add by Jerry
+#ifdef CONFIG_SND_SOC_AW882XX /* add by Jerry */
 extern void aw_cal_unmap_memory(void);
-#endif /* CONFIG_SND_SOC_AWINIC_AW882X X*/
+#endif /* CONFIG_SND_SOC_AW882XX */
 
 #define DRV_NAME "bengal-asoc-snd"
 #define __CHIPSET__ "BENGAL "
@@ -6676,12 +6672,12 @@ aux_dev_register:
 	card->num_aux_devs = wsa_max_devs + codec_aux_dev_cnt;
 	card->num_configs = wsa_max_devs + codec_aux_dev_cnt;
 
-#ifdef OPLUS_ARCH_EXTENDS
+#ifdef CONFIG_SND_SOC_SIA81XX
 	sia81xx_aux_num = soc_sia81xx_get_aux_num(pdev);
 	sia81xx_codec_conf_num = soc_sia81xx_get_codec_conf_num(pdev);
 	card->num_aux_devs += sia81xx_aux_num;
 	card->num_configs += sia81xx_codec_conf_num;
-#endif /* OPLUS_ARCH_EXTENDS */
+#endif /* CONFIG_SND_SOC_SIA81XX */
 
 	/* Alloc array of AUX devs struct */
 	msm_aux_dev = devm_kcalloc(&pdev->dev, card->num_aux_devs,
