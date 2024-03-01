@@ -598,7 +598,6 @@
 	qcom,platform-te-gpio = <&tlmm 81 0>;
 	qcom,platform-reset-gpio = <&tlmm 82 0>;
 	qcom,platform-panel-vci-gpio = <&tlmm 71 0>;
-	qcom,platform-panel-vddr-gpio = <&tlmm 103 0>;
 	qcom,platform-panel-vddr-gpio = <&pm6125_gpios 2 0>;
 	oplus,mdss-dsi-vendor-name = "S6E3FC3";
 	oplus,mdss-dsi-manufacture = "samsung2047";
