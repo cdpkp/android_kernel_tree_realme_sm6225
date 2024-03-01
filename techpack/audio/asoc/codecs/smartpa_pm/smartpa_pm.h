@@ -8,4 +8,4 @@
 
 void add_smartpa_pm_controls(struct snd_soc_component *component);
 
-#endif //_SMARTPA_PM_H_
+#endif /* _SMARTPA_PM_H_ */
