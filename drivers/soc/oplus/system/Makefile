@@ -13,8 +13,8 @@ obj-$(CONFIG_OPLUS_FEATURE_OPROJECT) 	+= oplus_project/
 obj-$(CONFIG_OPLUS_FEATURE_QCOM_MINIDUMP_ENHANCE) 	+= qcom_minidump/
 obj-$(CONFIG_OPLUS_FEATURE_HUNG_TASK_ENHANCE) += hung_task_enhance/
 obj-$(CONFIG_OPLUS_FEATURE_PHOENIX)     += oplus_phoenix/
-obj-$(CONFIG_OPLUS_FEATURE_PMIC_MONITOR)     += oppo_pmic_monitor/
-obj-$(CONFIG_OPLUS_FEATURE_SAUPWK)     += oppo_saupwk/
+obj-$(CONFIG_OPLUS_FEATURE_PMIC_MONITOR)     += oplus_pmic_monitor/
+obj-$(CONFIG_OPLUS_FEATURE_SAUPWK)     += oplus_saupwk/
 obj-$(CONFIG_OPLUS_FEATURE_DUMP_DEVICE_INFO)	+=  dump_device_info/
 obj-$(CONFIG_OPLUS_FEATURE_RECORD_MDMRST)     += mdmrst/
 obj-$(CONFIG_OPLUS_FEATURE_CMDLINE)     += cmdline_parser/
@@ -24,7 +24,7 @@ obj-$(CONFIG_OPLUS_FEATURE_PROJECTINFO)	+=  project_info/
 endif
 
 #ifdef OPLUS_FEATURE_ESIM
-obj-$(CONFIG_OPLUS_OPPO_GPIO)    +=  oppo_gpio/
+obj-$(CONFIG_OPLUS_OPLUS_GPIO)    +=  oplus_gpio/
 #endif /* OPLUS_FEATURE_ESIM */
 
 #ifdef OPLUS_FEATURE_QCOM_PMICWD

@@ -9,8 +9,8 @@ FILE:      oppo_pmic_info.h
 DESCRIPTION:
 
 =============================================================================*/
-#ifndef __OPPO_PMIC_INFO_H__
-#define __OPPO_PMIC_INFO_H__
+#ifndef __OPLUS_PMIC_INFO_H__
+#define __OPLUS_PMIC_INFO_H__
 
 #define PMIC_INFO_MAGIC 0x43494D504F50504F
 #define DATA_VALID_FLAG 0xCC

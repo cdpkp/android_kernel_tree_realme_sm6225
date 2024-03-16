@@ -6,7 +6,7 @@
 #include <linux/string.h>
 #include <linux/err.h>
 #include <linux/module.h>
-#include "oppo_pmic_info.h"
+#include "oplus_pmic_info.h"
 
 /**********************************************/
 static ssize_t pmic_history_magic_show(struct kobject *kobj,
