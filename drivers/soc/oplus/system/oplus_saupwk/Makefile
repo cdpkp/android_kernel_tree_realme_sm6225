@@ -3,5 +3,5 @@
 ifneq ($(CONFIG_OPLUS_FEATURE_SAUPWK),n)
 ccflags-y += -I$(srctree)/drivers/ -I$(srctree)/drivers/input/
 endif
-obj-$(CONFIG_OPLUS_FEATURE_SAUPWK) += oppo_saupwk.o
+obj-$(CONFIG_OPLUS_FEATURE_SAUPWK) += oplus_saupwk.o
 

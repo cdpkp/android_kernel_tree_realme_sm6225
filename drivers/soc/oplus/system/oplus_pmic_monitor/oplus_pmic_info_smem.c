@@ -13,7 +13,7 @@
 #include <linux/io.h>
 #include <linux/err.h>
 
-#include "oppo_pmic_info.h"
+#include "oplus_pmic_info.h"
 
 #define SMEM_PMIC_INFO	134
 
