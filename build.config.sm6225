@@ -2,4 +2,4 @@
 . ${ROOT_DIR}/${KERNEL_DIR}/build.config.aarch64
 
 DEFCONFIG="vendor/bengal-perf_defconfig"
-KERNEL_DIR="sm6225-kernel"
+KERNEL_DIR="sm6225"
