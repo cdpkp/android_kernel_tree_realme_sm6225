@@ -1,5 +1,7 @@
-. ${ROOT_DIR}/${KERNEL_DIR}/build.config.common
 . ${ROOT_DIR}/${KERNEL_DIR}/build.config.aarch64
 
+BRANCH=staging
+LLVM=1
+CLANG_PREBUILT_BIN=prebuilts-master/clang/host/linux-x86/clang-r416183b/bin
 DEFCONFIG="vendor/bengal-perf_defconfig"
 KERNEL_DIR="sm6225"
