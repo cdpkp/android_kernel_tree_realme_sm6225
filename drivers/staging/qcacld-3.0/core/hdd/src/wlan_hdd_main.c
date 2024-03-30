@@ -12522,26 +12522,6 @@ static int hdd_update_mac_addr_to_fw(struct hdd_context *hdd_ctx)
 		return -EAGAIN;
 	return 0;
 }
-#ifdef OPLUS_BUG_STABILITY
-/**
- * qdf_is_macaddr_Fw_Default() - check for a MacAddress of all zeros.
- * @mac_addr: pointer to the struct qdf_mac_addr to check.
- *
- * This function returns a bool that tells if a MacAddress is made up of
- * all zeros.
- *
- * Return: true if the MacAddress is all Zeros
- * false if the MacAddress is not all Zeros.
- */
-#define QDF_MAC_ADDR_FW_DEFAULT { {00,0x03,0x7f,0x12,00,00} }
-static bool qdf_is_macaddr_Fw_Default(struct qdf_mac_addr *mac_addr)
-{
-
-	struct qdf_mac_addr fw_mac_addr = QDF_MAC_ADDR_FW_DEFAULT;
-	return 0 == memcmp(mac_addr, &fw_mac_addr, QDF_MAC_ADDR_SIZE-2);
-
-}
-#endif /* OPLUS_BUG_STABILITY */
 
 static void reverse_byte_array(uint8_t *arr, int len) {
 	int i;
