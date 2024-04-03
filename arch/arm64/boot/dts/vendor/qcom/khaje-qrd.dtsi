@@ -392,25 +392,6 @@
 		thermal-governor = "step_wise";
 		thermal-sensors = <&pm6125_adc_tm ADC_AMUX_THM1_PU2>;
 		wake-capable-sensor;
-
-		pa_therm0_trips:trips {
-			pa_therm0_trip0: pa-therm0-trip0 {
-				temperature = <52000>;
-				hysteresis = <2000>;
-				type = "passive";
-			};
-
-			pa_therm0_trip1: pa-therm0-trip1 {
-				temperature = <54000>;
-				hysteresis = <2000>;
-				type = "passive";
-			};
-
-			pa_therm0_trip2: pa-therm0-trip2 {
-				temperature = <60000>;
-				hysteresis = <4000>;
-				type = "passive";
-			};
 		};
 
 		cooling-maps {
@@ -430,7 +411,6 @@
 			};
 		};
 	};
-};
 
 &tlmm {
 	fpc_reset_int: fpc_reset_int {
