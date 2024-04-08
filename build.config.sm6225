@@ -1,6 +1,5 @@
 . ${ROOT_DIR}/${KERNEL_DIR}/build.config.aarch64
 
-BRANCH=SM6225
 LLVM=1
 DEFCONFIG="vendor/bengal-perf_defconfig"
 KERNEL_DIR="sm6225"
