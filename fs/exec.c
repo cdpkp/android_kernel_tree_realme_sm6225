@@ -1028,10 +1028,23 @@ static int exec_mmap(struct mm_struct *mm)
 		}
 	}
 	task_lock(tsk);
+
+	local_irq_disable();
 	active_mm = tsk->active_mm;
-	tsk->mm = mm;
 	tsk->active_mm = mm;
+	tsk->mm = mm;
+	/*
+	 * This prevents preemption while active_mm is being loaded and
+	 * it and mm are being updated, which could cause problems for
+	 * lazy tlb mm refcounting when these are updated by context
+	 * switches. Not all architectures can handle irqs off over
+	 * activate_mm yet.
+	 */
+	if (!IS_ENABLED(CONFIG_ARCH_WANT_IRQS_OFF_ACTIVATE_MM))
+		local_irq_enable();
 	activate_mm(active_mm, mm);
+	if (IS_ENABLED(CONFIG_ARCH_WANT_IRQS_OFF_ACTIVATE_MM))
+		local_irq_enable();
 	tsk->mm->vmacache_seqnum = 0;
 	vmacache_flush(tsk);
 	task_unlock(tsk);
@@ -1234,12 +1247,17 @@ EXPORT_SYMBOL_GPL(__get_task_comm);
  * These functions flushes out all traces of the currently running executable
  * so that a new one can be started
  */
-
+#ifdef OPLUS_FEATURE_SCHED_ASSIST
+extern void sched_assist_target_comm(struct task_struct *task);
+#endif /* defined(OPLUS_FEATURE_SCHED_ASSIST) && defined(CONFIG_OPLUS_FEATURE_SCHED_ASSIST) */
 void __set_task_comm(struct task_struct *tsk, const char *buf, bool exec)
 {
 	task_lock(tsk);
 	trace_task_rename(tsk, buf);
 	strlcpy(tsk->comm, buf, sizeof(tsk->comm));
+#ifdef OPLUS_FEATURE_SCHED_ASSIST
+	sched_assist_target_comm(tsk);
+#endif /* OPLUS_FEATURE_SCHED_ASSIST */
 	task_unlock(tsk);
 	perf_event_comm(tsk, exec);
 }
@@ -1310,7 +1328,7 @@ EXPORT_SYMBOL(flush_old_exec);
 void would_dump(struct linux_binprm *bprm, struct file *file)
 {
 	struct inode *inode = file_inode(file);
-	if (inode_permission(inode, MAY_READ) < 0) {
+	if (inode_permission2(file->f_path.mnt, inode, MAY_READ) < 0) {
 		struct user_namespace *old, *user_ns;
 		bprm->interp_flags |= BINPRM_FLAGS_ENFORCE_NONDUMP;
 
@@ -1702,9 +1720,19 @@ static int exec_binprm(struct linux_binprm *bprm)
 		proc_exec_connector(current);
 	}
 
+#ifdef CONFIG_OPLUS_SF_BOOST
+	if (strcmp(current->comm, "surfaceflinger") == 0)
+		current->compensate_need = 2;
+#endif
+
 	return ret;
 }
 
+#ifdef CONFIG_OPLUS_SECURE_GUARD
+#if defined(CONFIG_OPLUS_EXECVE_BLOCK) || defined(CONFIG_OPLUS_EXECVE_REPORT)
+extern int oplus_exec_block(struct file *file);
+#endif /* CONFIG_OPLUS_EXECVE_BLOCK or CONFIG_OPLUS_EXECVE_REPORT */
+#endif /* CONFIG_OPLUS_SECURE_GUARD */
 /*
  * sys_execve() executes a new program.
  */
@@ -1759,6 +1787,15 @@ static int __do_execve_file(int fd, struct filename *filename,
 	if (IS_ERR(file))
 		goto out_unmark;
 
+#ifdef CONFIG_OPLUS_SECURE_GUARD
+#if defined(CONFIG_OPLUS_EXECVE_BLOCK) || defined(CONFIG_OPLUS_EXECVE_REPORT)
+    retval = oplus_exec_block(file);
+	if (retval){
+		fput(file);
+		goto out_unmark;
+	}
+#endif /* CONFIG_OPLUS_EXECVE_BLOCK or CONFIG_OPLUS_EXECVE_REPORT */
+#endif /* CONFIG_OPLUS_SECURE_GUARD */
 	sched_exec();
 
 	bprm->file = file;
