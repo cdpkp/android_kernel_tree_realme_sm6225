@@ -54,6 +54,7 @@
 #define MMC_READ_MULTIPLE_BLOCK  18   /* adtc [31:0] data addr   R1  */
 #define MMC_SEND_TUNING_BLOCK    19   /* adtc                    R1  */
 #define MMC_SEND_TUNING_BLOCK_HS200	21	/* adtc R1  */
+#define MMC_SEND_TUNING_BLOCK_HS400      MMC_SEND_TUNING_BLOCK_HS200
 
   /* class 3 */
 #define MMC_WRITE_DAT_UNTIL_STOP 20   /* adtc [31:0] data addr   R1  */
@@ -314,7 +315,8 @@ static inline bool mmc_op_multi(u32 opcode)
  * EXT_CSD field definitions
  */
 
-#define EXT_CSD_WR_REL_PARAM_EN		(1<<2)
+#define EXT_CSD_WR_REL_PARAM_EN			(1<<2)
+#define EXT_CSD_WR_REL_PARAM_EN_RPMB_REL_WR	(1<<4)
 
 #define EXT_CSD_BOOT_WP_B_PWR_WP_DIS	(0x40)
 #define EXT_CSD_BOOT_WP_B_PERM_WP_DIS	(0x10)
@@ -423,6 +425,17 @@ static inline bool mmc_op_multi(u32 opcode)
 #define MMC_SWITCH_MODE_SET_BITS	0x01	/* Set bits which are 1 in value */
 #define MMC_SWITCH_MODE_CLEAR_BITS	0x02	/* Clear bits which are 1 in value */
 #define MMC_SWITCH_MODE_WRITE_BYTE	0x03	/* Set target to value */
+
+/*
+ * MMC_LOCK_UNLOCK modes
+ */
+#ifdef CONFIG_MMC_PASSWORDS
+#define MMC_LOCK_MODE_ERASE		(1<<3)
+#define MMC_LOCK_MODE_LOCK		(1<<2)
+#define MMC_LOCK_MODE_CLR_PWD	(1<<1)
+#define MMC_LOCK_MODE_SET_PWD	(1<<0)
+#define MMC_LOCK_MODE_UNLOCK    (1<<4)
+#endif /* CONFIG_MMC_PASSWORDS */
 
 /*
  * Erase/trim/discard
