@@ -66,7 +66,7 @@ struct task_struct init_task
 #endif
 	.state		= 0,
 	.stack		= init_stack,
-	.usage		= ATOMIC_INIT(2),
+	.usage		= REFCOUNT_INIT(2),
 	.flags		= PF_KTHREAD,
 	.prio		= MAX_PRIO - 20,
 	.static_prio	= MAX_PRIO - 20,
@@ -93,6 +93,9 @@ struct task_struct init_task
 #endif
 #ifdef CONFIG_CGROUP_SCHED
 	.sched_task_group = &root_task_group,
+#endif
+#ifdef CONFIG_SCHED_TUNE
+	.stune_idx	= 0,
 #endif
 	.ptraced	= LIST_HEAD_INIT(init_task.ptraced),
 	.ptrace_entry	= LIST_HEAD_INIT(init_task.ptrace_entry),

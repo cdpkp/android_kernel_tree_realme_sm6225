@@ -167,6 +167,19 @@ done:
 	}
 	return res;
 }
+
+
+static int match_dev_by_label(struct device *dev, const void *data)
+  {
+        const char *label = data;
+        struct hd_struct *part = dev_to_part(dev);
+
+        if (part->info && !strcmp(label, part->info->volname))
+                return 1;
+
+        return 0;
+  }
+
 #endif
 
 /*
@@ -211,7 +224,18 @@ dev_t name_to_dev_t(const char *name)
 		if (!res)
 			goto fail;
 		goto done;
-	}
+	} else if (strncmp(name, "PARTLABEL=", 10) == 0) {
+  		struct device *dev;
+
+  		dev = class_find_device(&block_class, NULL, name + 10,
+  					&match_dev_by_label);
+  		if (!dev)
+  			goto fail;
+
+		res = dev->devt;
+  		put_device(dev);
+  		goto done;
+  	}
 #endif
 
 	if (strncmp(name, "/dev/", 5) != 0) {
@@ -555,6 +579,7 @@ void __init prepare_namespace(void)
 	wait_for_device_probe();
 
 	md_run_setup();
+	dm_run_setup();
 
 	if (saved_root_name[0]) {
 		root_device_name = saved_root_name;
