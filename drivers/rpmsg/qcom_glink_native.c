@@ -1440,6 +1440,7 @@ static int qcom_glink_announce_create(struct rpmsg_device *rpdev)
 	int size;
 
 	CH_INFO(channel, "Entered\n");
+	
 	if (glink->intentless || !completion_done(&channel->open_ack))
 		return 0;
 
