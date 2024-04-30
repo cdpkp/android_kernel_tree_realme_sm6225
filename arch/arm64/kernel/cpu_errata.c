@@ -711,6 +711,18 @@ static const struct midr_range arm64_harden_el2_vectors[] = {
 
 #endif
 
+#ifdef CONFIG_ARM64_ERRATUM_858921
+
+static const struct midr_range arm64_workaround_858921_cpus[] = {
+	/* Cortex-A73 all versions */
+	MIDR_ALL_VERSIONS(MIDR_CORTEX_A73),
+	/* KRYO2XX Gold all versions */
+	MIDR_ALL_VERSIONS(MIDR_KRYO2XX_GOLD),
+	{},
+};
+
+#endif
+
 #ifdef CONFIG_ARM64_ERRATUM_1742098
 static struct midr_range broken_aarch32_aes[] = {
 	MIDR_RANGE(MIDR_CORTEX_A57, 0, 1, 0xf, 0xf),
