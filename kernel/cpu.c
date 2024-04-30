@@ -31,10 +31,6 @@
 #include <linux/relay.h>
 #include <linux/slab.h>
 #include <linux/percpu-rwsem.h>
-<<<<<<< HEAD
-#include <uapi/linux/sched/types.h>
-=======
->>>>>>> bda44434a0e0a857fd82fd54e9352229e9950897
 #include <linux/cpuset.h>
 
 #include <trace/events/power.h>

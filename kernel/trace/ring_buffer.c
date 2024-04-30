@@ -3171,15 +3171,6 @@ static bool rb_per_cpu_empty(struct ring_buffer_per_cpu *cpu_buffer)
 	/* In case of error, head will be NULL */
 	if (unlikely(!head))
 		return true;
-<<<<<<< HEAD
-        #ifndef OPLUS_BUG_STABILITY
-	return reader->read == rb_page_commit(reader) &&
-		(commit == reader ||
-		 (commit == head &&
-		  head->read == rb_page_commit(commit)));
-        #else
-=======
->>>>>>> bda44434a0e0a857fd82fd54e9352229e9950897
 
 	/* Reader should exhaust content in reader page */
 	if (reader->read != rb_page_commit(reader))
@@ -3205,11 +3196,6 @@ static bool rb_per_cpu_empty(struct ring_buffer_per_cpu *cpu_buffer)
 	 * swap reader page with head page when it is to read data.
 	 */
 	return rb_page_commit(commit) == 0;
-<<<<<<< HEAD
-        #endif /*OPLUS_BUG_STABILITY*/
-
-=======
->>>>>>> bda44434a0e0a857fd82fd54e9352229e9950897
 }
 
 /**

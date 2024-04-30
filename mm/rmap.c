@@ -1925,12 +1925,6 @@ bool try_to_unmap(struct page *page, enum ttu_flags flags,
 		rmap_walk_locked(page, &rwc);
 	else
 		rmap_walk(page, &rwc);
-<<<<<<< HEAD
-#ifdef CONFIG_SHRINK_LRU_TRYLOCK
-	clearpage_reclaim_trylock(page, false);
-#endif /* CONFIG_SHRINK_LRU_TRYLOCK */
-	return !page_mapcount(page) ? true : false;
-=======
 
 	/*
 	 * When racing against e.g. zap_pte_range() on another cpu,
@@ -1939,7 +1933,6 @@ bool try_to_unmap(struct page *page, enum ttu_flags flags,
 	 * if page table locking is skipped: use TTU_SYNC to wait for that.
 	 */
 	return !page_mapcount(page);
->>>>>>> bda44434a0e0a857fd82fd54e9352229e9950897
 }
 
 /**
