@@ -562,6 +562,18 @@ multi_entry_cap_matches(const struct arm64_cpu_capabilities *entry, int scope)
 	return false;
 }
 
+#ifdef CONFIG_ARM64_ERRATUM_845719
+
+static const struct midr_range arm64_workaround_845719_cpus[] = {
+	/* Cortex-A53 r0p[01234] */
+	MIDR_RANGE(MIDR_CORTEX_A53, 0, 0, 0, 4),
+	/* Kryo2xx Silver rAp4 */
+	MIDR_RANGE(MIDR_KRYO2XX_SILVER, 0xA, 0x4, 0xA, 0x4),
+	{},
+};
+
+#endif
+
 /*
  * Take appropriate action for all matching entries in the shared capability
  * entry.
