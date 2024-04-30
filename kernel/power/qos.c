@@ -273,6 +273,19 @@ static inline void pm_qos_set_value_for_cpus(struct pm_qos_constraints *c,
 	int cpu;
 	s32 qos_val[NR_CPUS] = { [0 ... (NR_CPUS - 1)] = c->default_value };
 
+	/*
+	 * pm_qos_set_value_for_cpus expects all c->list elements to be of type
+	 * pm_qos_request, however requests from device will contain elements
+	 * of type dev_pm_qos_request.
+	 * pm_qos_constraints.target_per_cpu can be accessed only for
+	 * constraints associated with one of the pm_qos_class and present in
+	 * pm_qos_array. Device requests are not associated with any of
+	 * pm_qos_class, therefore their target_per_cpu cannot be accessed. We
+	 * can safely skip updating target_per_cpu for device requests.
+	 */
+	if (dev_req)
+		return;
+
 	plist_for_each_entry(req, &c->list, node) {
 		for_each_cpu(cpu, &req->cpus_affine) {
 			switch (c->type) {
@@ -290,13 +303,8 @@ static inline void pm_qos_set_value_for_cpus(struct pm_qos_constraints *c,
 		}
 	}
 
-	for_each_possible_cpu(cpu) {
-		if (c->target_per_cpu[cpu] != qos_val[cpu])
-			cpumask_set_cpu(cpu, cpus);
+	for_each_possible_cpu(cpu)
 		c->target_per_cpu[cpu] = qos_val[cpu];
-	}
-
-	return 0;
 }
 
 /**
