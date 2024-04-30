@@ -121,6 +121,10 @@ struct psi_trigger {
 	 * events to one per window
 	 */
 	u64 last_event_time;
+
+	/* Task that created the trigger */
+	char comm[TASK_COMM_LEN];
+	struct timer_list wdog_timer;
 };
 
 struct psi_group {
