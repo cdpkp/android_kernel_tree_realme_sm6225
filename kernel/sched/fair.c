@@ -4186,6 +4186,29 @@ static void check_spread(struct cfs_rq *cfs_rq, struct sched_entity *se)
 #endif
 }
 
+static inline bool entity_is_long_sleeper(struct sched_entity *se)
+{
+	struct cfs_rq *cfs_rq;
+	u64 sleep_time;
+
+	if (se->exec_start == 0)
+		return false;
+
+	cfs_rq = cfs_rq_of(se);
+
+	sleep_time = rq_clock_task(rq_of(cfs_rq));
+
+	/* Happen while migrating because of clock task divergence */
+	if (sleep_time <= se->exec_start)
+		return false;
+
+	sleep_time -= se->exec_start;
+	if (sleep_time > ((1ULL << 63) / scale_load_down(NICE_0_LOAD)))
+		return true;
+
+	return false;
+}
+
 static void
 place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 {
@@ -4212,35 +4235,31 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 			thresh >>= 1;
 
 		vruntime -= thresh;
-#ifdef CONFIG_SCHED_WALT
-#ifdef OPLUS_FEATURE_SCHED_ASSIST
-		if (entity_is_task(se)) {
-			if (((per_task_boost(task_of(se)) ==
-					TASK_BOOST_STRICT_MAX) ||
-					walt_low_latency_task(task_of(se)) ||
-					task_rtg_high_prio(task_of(se))) &&
-					!test_task_ux(task_of(se))) {
-#else
-		if (entity_is_task(se)) {
-			if ((per_task_boost(task_of(se)) ==
-					TASK_BOOST_STRICT_MAX) ||
-					walt_low_latency_task(task_of(se)) ||
-					task_rtg_high_prio(task_of(se))) {
-#endif
-				vruntime -= sysctl_sched_latency;
-				vruntime -= thresh;
-				se->vruntime = vruntime;
-				return;
-			}
-		}
-#endif
 	}
 
-	/* ensure we never gain time by being placed backwards. */
-	se->vruntime = max_vruntime(se->vruntime, vruntime);
-#ifdef OPLUS_FEATURE_SCHED_ASSIST
-	place_entity_adjust_ux_task(cfs_rq, se, initial);
-#endif /* OPLUS_FEATURE_SCHED_ASSIST */
+	/*
+	 * Pull vruntime of the entity being placed to the base level of
+	 * cfs_rq, to prevent boosting it if placed backwards.
+	 * However, min_vruntime can advance much faster than real time, with
+	 * the extreme being when an entity with the minimal weight always runs
+	 * on the cfs_rq. If the waking entity slept for a long time, its
+	 * vruntime difference from min_vruntime may overflow s64 and their
+	 * comparison may get inversed, so ignore the entity's original
+	 * vruntime in that case.
+	 * The maximal vruntime speedup is given by the ratio of normal to
+	 * minimal weight: scale_load_down(NICE_0_LOAD) / MIN_SHARES.
+	 * When placing a migrated waking entity, its exec_start has been set
+	 * from a different rq. In order to take into account a possible
+	 * divergence between new and prev rq's clocks task because of irq and
+	 * stolen time, we take an additional margin.
+	 * So, cutting off on the sleep time of
+	 *     2^63 / scale_load_down(NICE_0_LOAD) ~ 104 days
+	 * should be safe.
+	 */
+	if (entity_is_long_sleeper(se))
+		se->vruntime = vruntime;
+	else
+		se->vruntime = max_vruntime(se->vruntime, vruntime);
 }
 
 static void check_enqueue_throttle(struct cfs_rq *cfs_rq);
@@ -4338,6 +4357,9 @@ enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 	if (flags & ENQUEUE_WAKEUP)
 #endif
 		place_entity(cfs_rq, se, 0);
+	/* Entity has migrated, no longer consider this task hot */
+	if (flags & ENQUEUE_MIGRATED)
+		se->exec_start = 0;
 
 	check_schedstat_required();
 	update_stats_enqueue(cfs_rq, se, flags);
@@ -8247,9 +8269,6 @@ static void migrate_task_rq_fair(struct task_struct *p, int new_cpu)
 
 	/* Tell new CPU we are migrated */
 	p->se.avg.last_update_time = 0;
-
-	/* We have migrated, no longer consider this task hot */
-	p->se.exec_start = 0;
 
 	update_scan_period(p, new_cpu);
 }
