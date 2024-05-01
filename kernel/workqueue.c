@@ -49,6 +49,8 @@
 #include <linux/uaccess.h>
 #include <linux/sched/isolation.h>
 #include <linux/nmi.h>
+#include <linux/bug.h>
+#include <linux/delay.h>
 #include <linux/kvm_para.h>
 
 #include "workqueue_internal.h"

@@ -1474,6 +1474,15 @@ static int dwc3_probe(struct platform_device *pdev)
 	int			ret;
 
 	void __iomem		*regs;
+	int			irq;
+	char			dma_ipc_log_ctx_name[40];
+
+	if (count >= DWC_CTRL_COUNT) {
+		dev_err(dev, "Err dwc instance %d >= %d available\n",
+					count, DWC_CTRL_COUNT);
+		ret = -EINVAL;
+		return ret;
+	}
 
 	dwc = devm_kzalloc(dev, sizeof(*dwc), GFP_KERNEL);
 	if (!dwc)
@@ -1485,19 +1494,32 @@ static int dwc3_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	dwc->dev = dev;
-
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(dev, "missing memory resource\n");
 		return -ENODEV;
 	}
 
+	dwc->reg_phys = res->start;
 	dwc->xhci_resources[0].start = res->start;
 	dwc->xhci_resources[0].end = dwc->xhci_resources[0].start +
 					DWC3_XHCI_REGS_END;
 	dwc->xhci_resources[0].flags = res->flags;
 	dwc->xhci_resources[0].name = res->name;
 
+	irq = platform_get_irq(to_platform_device(dwc->dev), 0);
+
+	ret = devm_request_irq(dev, irq, dwc3_interrupt, IRQF_SHARED, "dwc3",
+			dwc);
+	if (ret) {
+		dev_err(dwc->dev, "failed to request irq #%d --> %d\n",
+				irq, ret);
+		return -ENODEV;
+	}
+
+	/* will be enabled in dwc3_msm_resume() */
+	disable_irq(irq);
+	dwc->irq = irq;
 	/*
 	 * Request memory region but exclude xHCI regs,
 	 * since it will be requested by the xhci-plat driver.
@@ -1509,6 +1531,14 @@ static int dwc3_probe(struct platform_device *pdev)
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
 
+	dwc->dwc_wq = alloc_ordered_workqueue("dwc_wq", WQ_HIGHPRI);
+	if (!dwc->dwc_wq) {
+		dev_err(dev,
+			"%s: Unable to create workqueue dwc_wq\n", __func__);
+		goto err0;
+	}
+
+	INIT_WORK(&dwc->bh_work, dwc3_bh_work);
 	dwc->regs	= regs;
 	dwc->regs_size	= resource_size(&dwc_res);
 
@@ -1516,7 +1546,7 @@ static int dwc3_probe(struct platform_device *pdev)
 
 	dwc->reset = devm_reset_control_get_optional_shared(dev, NULL);
 	if (IS_ERR(dwc->reset))
-		return PTR_ERR(dwc->reset);
+		goto skip_clk_reset;
 
 	if (dev->of_node) {
 		dwc->num_clks = ARRAY_SIZE(dwc3_core_clks);
@@ -1544,74 +1574,61 @@ static int dwc3_probe(struct platform_device *pdev)
 	if (ret)
 		goto unprepare_clks;
 
+skip_clk_reset:
 	platform_set_drvdata(pdev, dwc);
-	dwc3_cache_hwparams(dwc);
 
+	init_waitqueue_head(&dwc->wait_linkstate);
 	spin_lock_init(&dwc->lock);
 
+	pm_runtime_no_callbacks(dev);
 	pm_runtime_set_active(dev);
-	pm_runtime_use_autosuspend(dev);
-	pm_runtime_set_autosuspend_delay(dev, DWC3_DEFAULT_AUTOSUSPEND_DELAY);
+	if (dwc->enable_bus_suspend) {
+		pm_runtime_set_autosuspend_delay(dev,
+			DWC3_DEFAULT_AUTOSUSPEND_DELAY);
+		pm_runtime_use_autosuspend(dev);
+	}
 	pm_runtime_enable(dev);
-	ret = pm_runtime_get_sync(dev);
-	if (ret < 0)
-		goto err1;
-
 	pm_runtime_forbid(dev);
 
 	ret = dwc3_alloc_event_buffers(dwc, DWC3_EVENT_BUFFERS_SIZE);
 	if (ret) {
 		dev_err(dwc->dev, "failed to allocate event buffers\n");
 		ret = -ENOMEM;
-		goto err2;
+		goto err1;
 	}
-
-	ret = dwc3_get_dr_mode(dwc);
-	if (ret)
-		goto err3;
 
 	ret = dwc3_alloc_scratch_buffers(dwc);
 	if (ret)
-		goto err3;
+		goto err2;
 
-	ret = dwc3_core_init(dwc);
-	if (ret) {
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "failed to initialize core: %d\n", ret);
-		goto err4;
+	if (dwc3_is_otg_or_drd(dwc) ||
+		dwc->dr_mode == USB_DR_MODE_PERIPHERAL) {
+		ret = dwc3_gadget_init(dwc);
+		if (ret) {
+			dev_err(dwc->dev, "gadget init failed %d\n", ret);
+			goto err3;
+		}
 	}
 
-	dwc3_check_params(dwc);
+	dwc->dwc_ipc_log_ctxt = ipc_log_context_create(NUM_LOG_PAGES,
+					dev_name(dwc->dev), 0);
+	if (!dwc->dwc_ipc_log_ctxt)
+		dev_err(dwc->dev, "Error getting ipc_log_ctxt\n");
+
+	snprintf(dma_ipc_log_ctx_name, sizeof(dma_ipc_log_ctx_name),
+					"%s.ep_events", dev_name(dwc->dev));
+	dwc->dwc_dma_ipc_log_ctxt = ipc_log_context_create(2 * NUM_LOG_PAGES,
+						dma_ipc_log_ctx_name, 0);
+	if (!dwc->dwc_dma_ipc_log_ctxt)
+		dev_err(dwc->dev, "Error getting ipc_log_ctxt for ep_events\n");
+
+	dwc3_instance[count] = dwc;
+	dwc->index = count;
+	count++;
+
+	pm_runtime_allow(dev);
 	dwc3_debugfs_init(dwc);
-
-	ret = dwc3_core_init_mode(dwc);
-	if (ret)
-		goto err5;
-	
-	pm_runtime_put(dev);
-
-	dma_set_max_seg_size(dev, UINT_MAX);
-
 	return 0;
-
-err5:
-	dwc3_debugfs_exit(dwc);
-	dwc3_event_buffers_cleanup(dwc);
-
-	usb_phy_set_suspend(dwc->usb2_phy, 1);
-	usb_phy_set_suspend(dwc->usb3_phy, 1);
-	phy_power_off(dwc->usb2_generic_phy);
-	phy_power_off(dwc->usb3_generic_phy);
-
-	usb_phy_shutdown(dwc->usb2_phy);
-	usb_phy_shutdown(dwc->usb3_phy);
-	phy_exit(dwc->usb2_generic_phy);
-	phy_exit(dwc->usb3_generic_phy);
-
-	dwc3_ulpi_exit(dwc);
-
-err4:
-	dwc3_free_scratch_buffers(dwc);
 
 err3:
 	dwc3_free_scratch_buffers(dwc);

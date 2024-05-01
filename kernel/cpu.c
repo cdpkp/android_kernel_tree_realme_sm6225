@@ -31,6 +31,7 @@
 #include <linux/relay.h>
 #include <linux/slab.h>
 #include <linux/percpu-rwsem.h>
+#include <uapi/linux/sched/types.h>
 #include <linux/cpuset.h>
 #include <linux/random.h>
 
@@ -40,9 +41,7 @@
 #include <linux/sched/clock.h>
 
 #include "smpboot.h"
-#ifdef OPLUS_FEATURE_SCHED_ASSIST
-#include <linux/sched_assist/sched_assist_common.h>
-#endif
+
 /**
  * cpuhp_cpu_state - Per cpu hotplug state storage
  * @state:	The current cpu state

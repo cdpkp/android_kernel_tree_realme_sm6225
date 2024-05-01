@@ -200,7 +200,7 @@ err2:
 void ion_buffer_destroy(struct ion_buffer *buffer)
 {
 	if (buffer->kmap_cnt > 0) {
-		pr_warn_ratelimited("ION client likely missing a call to dma_buf_kunmap\n");
+		pr_warn_ratelimited("ION client likely missing a call to dma_buf_kunmap or dma_buf_vunmap\n");
 		buffer->heap->ops->unmap_kernel(buffer->heap, buffer);
 	}
 #ifdef OPLUS_FEATURE_HEALTHINFO
@@ -263,7 +263,7 @@ static void *ion_buffer_kmap_get(struct ion_buffer *buffer)
 static void ion_buffer_kmap_put(struct ion_buffer *buffer)
 {
 	if (buffer->kmap_cnt == 0) {
-		pr_warn_ratelimited("ION client likely missing a call to dma_buf_kmap, pid:%d\n",
+		pr_warn_ratelimited("ION client likely missing a call to dma_buf_kmap or dma_buf_vmap, pid:%d\n",
 				    current->pid);
 		return;
 	}
@@ -541,19 +541,30 @@ static void ion_dma_buf_release(struct dma_buf *dmabuf)
 	kfree(dmabuf->exp_name);
 }
 
-static void *ion_dma_buf_kmap(struct dma_buf *dmabuf)
+static void *ion_dma_buf_vmap(struct dma_buf *dmabuf)
 {
 	struct ion_buffer *buffer = dmabuf->priv;
-	void *vaddr;
+	void *vaddr = ERR_PTR(-EINVAL);
 
-	if (!buffer->heap->ops->map_kernel) {
-		pr_err("%s: map kernel is not implemented by this heap.\n",
-		       __func__);
-		return ERR_PTR(-ENOTTY);
+	if (buffer->heap->ops->map_kernel) {
+		mutex_lock(&buffer->lock);
+		vaddr = ion_buffer_kmap_get(buffer);
+		mutex_unlock(&buffer->lock);
+	} else {
+		pr_warn_ratelimited("heap %s doesn't support map_kernel\n",
+				    buffer->heap->name);
 	}
-	mutex_lock(&buffer->lock);
-	vaddr = ion_buffer_kmap_get(buffer);
-	mutex_unlock(&buffer->lock);
+
+	return vaddr;
+}
+
+static void *ion_dma_buf_kmap(struct dma_buf *dmabuf, unsigned long offset)
+{
+	/*
+	 * TODO: Once clients remove their hacks where they assume kmap(ed)
+	 * addresses are virtually contiguous implement this properly
+	 */
+	void *vaddr = ion_dma_buf_vmap(dmabuf);
 
 	if (IS_ERR(vaddr))
 		return vaddr;
@@ -561,8 +572,7 @@ static void *ion_dma_buf_kmap(struct dma_buf *dmabuf)
 	return vaddr + offset * PAGE_SIZE;
 }
 
-static void ion_dma_buf_kunmap(struct dma_buf *dmabuf, unsigned long offset,
-			       void *ptr)
+static void ion_dma_buf_vunmap(struct dma_buf *dmabuf, void *vaddr)
 {
 	struct ion_buffer *buffer = dmabuf->priv;
 
@@ -571,23 +581,186 @@ static void ion_dma_buf_kunmap(struct dma_buf *dmabuf, unsigned long offset,
 		ion_buffer_kmap_put(buffer);
 		mutex_unlock(&buffer->lock);
 	}
-
 }
 
-static int ion_dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
-					enum dma_data_direction direction)
+static void ion_dma_buf_kunmap(struct dma_buf *dmabuf, unsigned long offset,
+			       void *ptr)
+{
+	/*
+	 * TODO: Once clients remove their hacks where they assume kmap(ed)
+	 * addresses are virtually contiguous implement this properly
+	 */
+	ion_dma_buf_vunmap(dmabuf, ptr);
+}
+
+static int ion_sgl_sync_range(struct device *dev, struct scatterlist *sgl,
+			      unsigned int nents, unsigned long offset,
+			      unsigned long length,
+			      enum dma_data_direction dir, bool for_cpu)
+{
+	int i;
+	struct scatterlist *sg;
+	unsigned int len = 0;
+	dma_addr_t sg_dma_addr;
+
+	for_each_sg(sgl, sg, nents, i) {
+		if (sg_dma_len(sg) == 0)
+			break;
+
+		if (i > 0) {
+			pr_warn_ratelimited("Partial cmo only supported with 1 segment\n"
+				"is dma_set_max_seg_size being set on dev:%s\n",
+				dev_name(dev));
+			return -EINVAL;
+		}
+	}
+
+	for_each_sg(sgl, sg, nents, i) {
+		unsigned int sg_offset, sg_left, size = 0;
+
+		if (i == 0)
+			sg_dma_addr = sg_dma_address(sg);
+
+		len += sg->length;
+		if (len <= offset) {
+			sg_dma_addr += sg->length;
+			continue;
+		}
+
+		sg_left = len - offset;
+		sg_offset = sg->length - sg_left;
+
+		size = (length < sg_left) ? length : sg_left;
+		if (for_cpu)
+			dma_sync_single_range_for_cpu(dev, sg_dma_addr,
+						      sg_offset, size, dir);
+		else
+			dma_sync_single_range_for_device(dev, sg_dma_addr,
+							 sg_offset, size, dir);
+
+		offset += size;
+		length -= size;
+		sg_dma_addr += sg->length;
+
+		if (length == 0)
+			break;
+	}
+
+	return 0;
+}
+
+static int ion_sgl_sync_mapped(struct device *dev, struct scatterlist *sgl,
+			       unsigned int nents, struct list_head *vmas,
+			       enum dma_data_direction dir, bool for_cpu)
+{
+	struct ion_vma_list *vma_list;
+	int ret = 0;
+
+	list_for_each_entry(vma_list, vmas, list) {
+		struct vm_area_struct *vma = vma_list->vma;
+
+		ret = ion_sgl_sync_range(dev, sgl, nents,
+					 vma->vm_pgoff * PAGE_SIZE,
+					 vma->vm_end - vma->vm_start, dir,
+					 for_cpu);
+		if (ret)
+			break;
+	}
+
+	return ret;
+}
+
+static int __ion_dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
+					  enum dma_data_direction direction,
+					  bool sync_only_mapped)
 {
 	struct ion_buffer *buffer = dmabuf->priv;
 	struct ion_dma_buf_attachment *a;
+	int ret = 0;
+
+	if (!hlos_accessible_buffer(buffer)) {
+		trace_ion_begin_cpu_access_cmo_skip(NULL, dmabuf->name,
+						    ion_buffer_cached(buffer),
+						    false, direction,
+						    sync_only_mapped);
+		ret = -EPERM;
+		goto out;
+	}
+
+	if (!(buffer->flags & ION_FLAG_CACHED)) {
+		trace_ion_begin_cpu_access_cmo_skip(NULL, dmabuf->name, false,
+						    true, direction,
+						    sync_only_mapped);
+		goto out;
+	}
 
 	mutex_lock(&buffer->lock);
+
+	if (IS_ENABLED(CONFIG_ION_FORCE_DMA_SYNC)) {
+		struct device *dev = buffer->heap->priv;
+		struct sg_table *table = buffer->sg_table;
+
+		if (sync_only_mapped)
+			ret = ion_sgl_sync_mapped(dev, table->sgl,
+						  table->nents, &buffer->vmas,
+						  direction, true);
+		else
+			dma_sync_sg_for_cpu(dev, table->sgl,
+					    table->nents, direction);
+
+		if (!ret)
+			trace_ion_begin_cpu_access_cmo_apply(dev, dmabuf->name,
+							     true, true,
+							     direction,
+							     sync_only_mapped);
+		else
+			trace_ion_begin_cpu_access_cmo_skip(dev, dmabuf->name,
+							    true, true,
+							    direction,
+							    sync_only_mapped);
+		mutex_unlock(&buffer->lock);
+		goto out;
+	}
+
 	list_for_each_entry(a, &buffer->attachments, list) {
-		dma_sync_sg_for_cpu(a->dev, a->table->sgl, a->table->nents,
-				    direction);
+		int tmp = 0;
+
+		if (!a->dma_mapped) {
+			trace_ion_begin_cpu_access_notmapped(a->dev,
+							     dmabuf->name,
+							     true, true,
+							     direction,
+							     sync_only_mapped);
+			continue;
+		}
+
+		if (sync_only_mapped)
+			tmp = ion_sgl_sync_mapped(a->dev, a->table->sgl,
+						  a->table->nents,
+						  &buffer->vmas,
+						  direction, true);
+		else
+			dma_sync_sg_for_cpu(a->dev, a->table->sgl,
+					    a->table->nents, direction);
+
+		if (!tmp) {
+			trace_ion_begin_cpu_access_cmo_apply(a->dev,
+							     dmabuf->name,
+							     true, true,
+							     direction,
+							     sync_only_mapped);
+		} else {
+			trace_ion_begin_cpu_access_cmo_skip(a->dev,
+							    dmabuf->name, true,
+							    true, direction,
+							    sync_only_mapped);
+			ret = tmp;
+		}
+
 	}
 	mutex_unlock(&buffer->lock);
-
-	return 0;
+out:
+	return ret;
 }
 
 static int __ion_dma_buf_end_cpu_access(struct dma_buf *dmabuf,
@@ -892,7 +1065,9 @@ static const struct dma_buf_ops dma_buf_ops = {
 	.begin_cpu_access_partial = ion_dma_buf_begin_cpu_access_partial,
 	.end_cpu_access_partial = ion_dma_buf_end_cpu_access_partial,
 	.map = ion_dma_buf_kmap,
+	.vmap = ion_dma_buf_vmap,
 	.unmap = ion_dma_buf_kunmap,
+	.vunmap = ion_dma_buf_vunmap,
 	.get_flags = ion_dma_buf_get_flags,
 };
 

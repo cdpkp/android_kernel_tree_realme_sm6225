@@ -245,9 +245,6 @@ void panic(const char *fmt, ...)
 	vsnprintf(buf, sizeof(buf), fmt, args);
 	va_end(args);
 	dump_stack_minidump(0);
-#ifdef CONFIG_OPLUS_FEATURE_PANIC_FLUSH
-	panic_flush_device_cache(2000);
-#endif
 	if (vendor_panic_cb)
 		vendor_panic_cb(0);
 	pr_emerg("Kernel panic - not syncing: %s\n", buf);
