@@ -2073,6 +2073,21 @@ static bool sdhci_presetable_values_change(struct sdhci_host *host, struct mmc_i
 	       (sdhci_preset_needed(host, ios->timing) || host->drv_type != ios->drv_type);
 }
 
+void sdhci_cfg_irq(struct sdhci_host *host, bool enable, bool sync)
+{
+	if (enable && !(host->flags & SDHCI_HOST_IRQ_STATUS)) {
+		enable_irq(host->irq);
+		host->flags |= SDHCI_HOST_IRQ_STATUS;
+	} else if (!enable && (host->flags & SDHCI_HOST_IRQ_STATUS)) {
+		if (sync)
+			disable_irq(host->irq);
+		else
+			disable_irq_nosync(host->irq);
+		host->flags &= ~SDHCI_HOST_IRQ_STATUS;
+	}
+}
+EXPORT_SYMBOL(sdhci_cfg_irq);
+
 void sdhci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 {
 	struct sdhci_host *host = mmc_priv(mmc);
