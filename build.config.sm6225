@@ -1,7 +1,7 @@
 ARCH=arm64
 LLVM=1
 LLVM_IAS=1
-DEFCONFIG="vendor/bengal-perf_defconfig"
+DEFCONFIG="vendor/sm6225-perf_defconfig"
 KERNEL_DIR="sm6225"
 KMI_GENERATION=0
 DEPMOD=depmod
