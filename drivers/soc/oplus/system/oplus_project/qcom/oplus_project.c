@@ -479,7 +479,7 @@ static void __init update_manifest(struct proc_dir_entry *parent_1, struct proc_
     set_fs(fs);
 }
 
-static void update_telephony_manifest(struct proc_dir_entry *parent_1, struct proc_dir_entry *parent_2)
+static void __init update_telephony_manifest(struct proc_dir_entry *parent_1, struct proc_dir_entry *parent_2)
 {
     static const char* manifest_src[2] = {
         "/vendor/odm/etc/vintf/telephony_manifest_ssss.xml",
