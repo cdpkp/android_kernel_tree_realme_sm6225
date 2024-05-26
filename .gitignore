@@ -135,3 +135,16 @@ all.config
 
 # fetched Android config fragments
 kernel/configs/android-*.cfg
+
+# For local/cloud building from inside the source
+toolchains/
+out/
+**/*.tgz
+**/*.tar.gz
+**/build.log
+modulebuild
+kernelbuild
+**/*.zip
+**/Image
+**/Image.gz
+**/*.ko
